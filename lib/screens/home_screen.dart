@@ -1,95 +1,122 @@
-import 'package:flutter/material.dart'; // Flutter UI framework
-import 'package:go_router/go_router.dart'; // Navigation package
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:activityn3/screens/list_question_screen.dart';
-// import 'package:activityn3/providers/user_provider.dart';
-//import 'package:activityn3/database/database_helper.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key}); // Default constructor
+  const HomeScreen({super.key});
 
-  static const routeName = "/home_screen"; // Route name for GoRouter navigation
-  static Function(BuildContext context) go = (context) =>
-      context.go(routeName); // Shortcut to navigate using go()
+  static const routeName = "/home_screen";
+  static Function(BuildContext context) go = (context) => context.go(routeName);
   static Function(BuildContext context) push = (context) =>
-      context.push(routeName); // Shortcut to navigate using push()
+      context.push(routeName);
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState(); // Creates mutable state for the widget
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   late final Database db;
 
-  final TextEditingController _questionController =
-      TextEditingController(); // Controller for username input
-  final TextEditingController _answerController =
-      TextEditingController(); // Controller for password input
+  final TextEditingController _questionController = TextEditingController();
+  final TextEditingController _answerController = TextEditingController();
 
-  void _question() async {
-    // Handles questions
+  @override
+  void initState() {
+    super.initState();
+    _initDatabase(); // Initialize the database on startup
+  }
 
-    final questions = _questionController.text.trim(); // Get trimmed username
-    //final answers = _answerController.text.trim(); // Get trimmed password
+  void _initDatabase() {
+    db = sqlite3.open('quiz.db'); //  Opens (or creates) the database file
 
-    // final UserProvider auth = UserProvider(); // Instantiate AuthProvider directly
-    // final success = await auth.loadUsers(questions, answers); // Call register method
-    // if (!mounted) return; // Ensure widget is still in widget tree before updating UI
-    context.push(
-      QuestionList.routeName,
-    ); // Navigate to UserScreen after registration
+    // Create table if it doesn't exist yet
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS quiz (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL
+      )
+    ''');
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Quiz added Successful')),
-    ); // Show success message
+  void _addQuestion() {
+    final question = _questionController.text.trim();
+    final answer = _answerController.text.trim();
 
-    //  if (success) {
-    //   ScaffoldMessenger.of(
-    //     context,
-    //   ).showSnackBar(const SnackBar(content: Text('Quiz added Successful'))); // Show success message
-    // } else {
-    //   ScaffoldMessenger.of(
-    //     context,
-    //   ).showSnackBar(const SnackBar(content: Text('Quiz already exists'))); // Show error message
-    // }
-
-    ResultSet result = db.select(
-      "select * from quiz where question='$questions'",
-    );
-    if (result.isNotEmpty) {
-      print(result.rows);
-    } else {
-      return null;
+    //Validate inputs before doing anything
+    if (question.isEmpty || answer.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in both fields')),
+      );
+      return;
     }
 
+    // Check if question already exists
+    final existing = db.select(
+      'SELECT * FROM quiz WHERE question = ?',
+      [question], // Use parameterized queries to prevent SQL injection
+    );
+
+    if (existing.isNotEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Question already exists')));
+      return;
+    }
+
+    // Insert the new question and answer
+    db.execute('INSERT INTO quiz (question, answer) VALUES (?, ?)', [
+      question,
+      answer,
+    ]);
+
+    // Confirm insertion by fetching it back
+    final result = db.select('SELECT * FROM quiz WHERE question = ?', [
+      question,
+    ],
+    );
+
+    if (result.isNotEmpty) {
+      print('Inserted: ${result.rows}');
+    }
+
+    // Clear fields after successful insert
+    _questionController.clear();
+    _answerController.clear();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Quiz added successfully')));
+
+    // Navigate after everything is done
+    context.push(QuestionList.routeName);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Quiz')), // App bar with title
+      appBar: AppBar(title: const Text('Quiz')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0), // Padding around form
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             TextField(
               controller: _questionController,
-              decoration: const InputDecoration(
-                labelText: 'Question',
-              ), // Label text
+              decoration: const InputDecoration(labelText: 'Question'),
             ),
             TextField(
               controller: _answerController,
-              decoration: const InputDecoration(
-                labelText: 'Answer',
-              ), // Label text
-              obscureText: true, // Hide password characters
+              decoration: const InputDecoration(labelText: 'Answer'),
+              obscureText: true,
             ),
-            const SizedBox(height: 20), // Space between inputs and button
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _question,
+              onPressed: _addQuestion, // enamed for clarity
               child: const Text('Add Question'),
-            ), // Register button
+            ),
           ],
         ),
       ),
@@ -98,8 +125,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _questionController.dispose(); // Dispose username controller to free memory
-    _answerController.dispose(); // Dispose password controller to free memory
-    super.dispose(); // Call parent dispose
+    _questionController.dispose();
+    _answerController.dispose();
+    db.dispose(); // Always close the database when done
+    super.dispose();
   }
 }
