@@ -1,0 +1,32 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "activityn3",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "activityn3 (profile mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "activityn3 (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "IOS (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "39090AAE-55B5-40AA-8BFD-7A5DDDF99E43",
+            "cwd": ""
+        },
+    ]
+}
